@@ -1,0 +1,11 @@
+// Edit these once. Every page reads from here.
+export const site = {
+  name: 'Engineer Name',
+  role: 'Civil Engineer',
+  headline: 'Write one plain sentence about the work you do.',
+  intro: 'Add two or three lines about your experience and the kinds of projects you take on.',
+  tagline: 'Civil engineering projects by Engineer Name.',
+  email: 'name@example.com',
+  phone: '+234 000 000 0000',
+  whatsapp: '2340000000000', // digits only, with country code
+};

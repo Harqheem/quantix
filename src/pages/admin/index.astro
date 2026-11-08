@@ -1,0 +1,257 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+<Base title="Admin" noindex={true}>
+  <div class="wrap admin">
+    <section id="login" hidden>
+      <h1>Sign in</h1>
+      <form id="login-form">
+        <label>Email
+          <input type="email" id="email" required autocomplete="username" />
+        </label>
+        <label>Password
+          <input type="password" id="password" required autocomplete="current-password" />
+        </label>
+        <button type="submit">Sign in</button>
+        <p id="login-msg" class="msg" role="alert"></p>
+      </form>
+    </section>
+
+    <section id="dashboard" hidden>
+      <div class="admin-head">
+        <h1>Manage projects</h1>
+        <button id="signout" class="ghost" type="button">Sign out</button>
+      </div>
+
+      <h2>Add a project</h2>
+      <form id="project-form">
+        <label>Project name
+          <input type="text" id="title" required maxlength="120" />
+        </label>
+        <div class="row">
+          <label>Location
+            <input type="text" id="location" maxlength="80" />
+          </label>
+          <label>Year
+            <input type="number" id="year" min="1990" max="2100" inputmode="numeric" />
+          </label>
+          <label>Type of work
+            <input type="text" id="category" list="categories" maxlength="60" />
+            <datalist id="categories">
+              <option value="Building"></option>
+              <option value="Road"></option>
+              <option value="Drainage"></option>
+              <option value="Bridge"></option>
+              <option value="Water supply"></option>
+              <option value="Renovation"></option>
+            </datalist>
+          </label>
+        </div>
+        <label>Description
+          <textarea id="description" maxlength="3000"></textarea>
+          <span class="hint">Leave a blank line between paragraphs.</span>
+        </label>
+        <label>Photos and videos
+          <input type="file" id="files" accept="image/*,video/*" multiple required />
+          <span class="hint">Photos are resized automatically. Keep each video under 100 MB, ideally 15 to 60 seconds. The first photo becomes the cover.</span>
+        </label>
+        <button id="submit-btn" type="submit">Publish project</button>
+        <p id="status" class="msg" role="status"></p>
+      </form>
+
+      <h2>Your projects</h2>
+      <ul id="project-list" class="plist"></ul>
+    </section>
+  </div>
+</Base>
+
+<script>
+  import { supabase } from '../../lib/supabase.js';
+  import { poster } from '../../lib/media.js';
+
+  const cloud = import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const imagePreset = import.meta.env.PUBLIC_CLOUDINARY_IMAGE_PRESET;
+  const videoPreset = import.meta.env.PUBLIC_CLOUDINARY_VIDEO_PRESET || imagePreset;
+  const MAX_VIDEO_MB = 100;
+
+  const $ = (id) => document.getElementById(id);
+
+  const slugify = (s) =>
+    s.toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '').trim()
+      .replace(/[\s_]+/g, '-').replace(/-+/g, '-').slice(0, 60) || 'project';
+
+  // Resize photos in the browser so big phone shots stay under Cloudinary's free file limit.
+  async function shrink(file, max = 2000) {
+    if (!file.type.startsWith('image/') || file.type === 'image/gif') return file;
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bmp.width * scale);
+    canvas.height = Math.round(bmp.height * scale);
+    canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+    return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+  }
+
+  async function upload(file) {
+    const isVideo = file.type.startsWith('video/');
+    if (isVideo && file.size > MAX_VIDEO_MB * 1024 * 1024) {
+      throw new Error(`${file.name} is over ${MAX_VIDEO_MB} MB. Trim or compress it, then try again.`);
+    }
+    const body = new FormData();
+    body.append('file', isVideo ? file : await shrink(file));
+    body.append('upload_preset', isVideo ? videoPreset : imagePreset);
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/${isVideo ? 'video' : 'image'}/upload`, {
+      method: 'POST',
+      body,
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error?.message || `Could not upload ${file.name}.`);
+    return {
+      type: isVideo ? 'video' : 'image',
+      public_id: json.public_id,
+      url: json.secure_url,
+      width: json.width ?? null,
+      height: json.height ?? null,
+    };
+  }
+
+  async function loadProjects() {
+    const list = $('project-list');
+    list.replaceChildren();
+    const { data, error } = await supabase
+      .from('projects')
+      .select('id,title,published,created_at')
+      .order('created_at', { ascending: false });
+    if (error) {
+      list.textContent = 'Could not load projects. Refresh the page and try again.';
+      return;
+    }
+    if (!data.length) {
+      const li = document.createElement('li');
+      li.textContent = 'No projects yet. Add your first one above.';
+      list.append(li);
+      return;
+    }
+    for (const p of data) {
+      const li = document.createElement('li');
+      const label = document.createElement('span');
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = p.title;
+      const state = document.createElement('span');
+      state.className = 'state';
+      state.textContent = p.published ? 'Visible' : 'Hidden';
+      label.append(name, state);
+
+      const actions = document.createElement('span');
+      actions.className = 'actions';
+
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'ghost';
+      toggle.textContent = p.published ? 'Hide from site' : 'Show on site';
+      toggle.addEventListener('click', async () => {
+        const { error: err } = await supabase.from('projects').update({ published: !p.published }).eq('id', p.id);
+        $('status').textContent = err ? 'Could not update the project.' : 'Saved. The live site updates in a minute or two.';
+        await loadProjects();
+      });
+
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'ghost';
+      del.textContent = 'Delete';
+      del.addEventListener('click', async () => {
+        if (!confirm(`Delete "${p.title}"? This cannot be undone.`)) return;
+        const { error: err } = await supabase.from('projects').delete().eq('id', p.id);
+        $('status').textContent = err ? 'Could not delete the project.' : 'Deleted. The live site updates in a minute or two.';
+        await loadProjects();
+      });
+
+      actions.append(toggle, del);
+      li.append(label, actions);
+      list.append(li);
+    }
+  }
+
+  function render(session) {
+    $('login').hidden = !!session;
+    $('dashboard').hidden = !session;
+    if (session) loadProjects();
+  }
+
+  // Fires once with the current session on load, then on every sign-in or sign-out.
+  supabase.auth.onAuthStateChange((_event, session) => {
+    setTimeout(() => render(session), 0);
+  });
+
+  $('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('login-msg').textContent = '';
+    const { error } = await supabase.auth.signInWithPassword({
+      email: $('email').value.trim(),
+      password: $('password').value,
+    });
+    if (error) $('login-msg').textContent = 'The email or password is incorrect.';
+  });
+
+  $('signout').addEventListener('click', () => supabase.auth.signOut());
+
+  $('project-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const status = $('status');
+    const button = $('submit-btn');
+    const files = [...$('files').files];
+    if (!files.length) {
+      status.textContent = 'Add at least one photo or video.';
+      return;
+    }
+
+    button.disabled = true;
+    try {
+      const uploaded = [];
+      for (let i = 0; i < files.length; i++) {
+        status.textContent = `Uploading ${i + 1} of ${files.length}: ${files[i].name}`;
+        uploaded.push(await upload(files[i]));
+      }
+
+      status.textContent = 'Saving project...';
+      const title = $('title').value.trim();
+      const firstImage = uploaded.find((u) => u.type === 'image');
+      const row = {
+        title,
+        slug: slugify(title),
+        description: $('description').value.trim() || null,
+        location: $('location').value.trim() || null,
+        year: $('year').value ? parseInt($('year').value, 10) : null,
+        category: $('category').value.trim() || null,
+        cover_url: firstImage ? firstImage.url : poster(uploaded[0].url),
+      };
+
+      let { data, error } = await supabase.from('projects').insert(row).select('id').single();
+      if (error?.code === '23505') {
+        // Another project already uses this slug; add a short suffix and retry once.
+        row.slug += '-' + Math.random().toString(36).slice(2, 6);
+        ({ data, error } = await supabase.from('projects').insert(row).select('id').single());
+      }
+      if (error) throw error;
+
+      const { error: mediaError } = await supabase.from('project_media').insert(
+        uploaded.map((u, i) => ({ project_id: data.id, ...u, sort_order: i }))
+      );
+      if (mediaError) {
+        await supabase.from('projects').delete().eq('id', data.id);
+        throw mediaError;
+      }
+
+      form.reset();
+      status.textContent = 'Published. The live site updates in a minute or two.';
+      await loadProjects();
+    } catch (err) {
+      status.textContent = err.message || 'Something went wrong. Try again.';
+    } finally {
+      button.disabled = false;
+    }
+  });
+</script>

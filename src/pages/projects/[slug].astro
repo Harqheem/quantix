@@ -1,0 +1,72 @@
+---
+import Base from '../../layouts/Base.astro';
+import { supabase } from '../../lib/supabase.js';
+import { img, srcset, og, poster, videoSrc } from '../../lib/media.js';
+
+export async function getStaticPaths() {
+  const { data: projects, error } = await supabase.from('projects').select('*').eq('published', true);
+  if (error) throw new Error(`Could not load projects: ${error.message}`);
+  const { data: media, error: mediaError } = await supabase.from('project_media').select('*').order('sort_order');
+  if (mediaError) throw new Error(`Could not load media: ${mediaError.message}`);
+
+  return (projects ?? []).map((project) => ({
+    params: { slug: project.slug },
+    props: { project, media: (media ?? []).filter((m) => m.project_id === project.id) },
+  }));
+}
+
+const { project, media } = Astro.props;
+const cells = [['Location', project.location], ['Year', project.year], ['Type', project.category]].filter(([, v]) => v);
+const paragraphs = (project.description ?? '').split(/\n\s*\n/).filter(Boolean);
+---
+<Base
+  title={project.title}
+  description={paragraphs[0]?.slice(0, 160)}
+  image={project.cover_url ? og(project.cover_url) : undefined}
+>
+  <article class="wrap project">
+    <p class="back"><a href="/">All projects</a></p>
+    <h1>{project.title}</h1>
+
+    {cells.length > 0 && (
+      <dl class="titleblock">
+        {cells.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
+      </dl>
+    )}
+
+    {paragraphs.length > 0 && (
+      <div class="prose">
+        {paragraphs.map((p) => <p>{p}</p>)}
+      </div>
+    )}
+
+    <div class="gallery">
+      {media.map((m, i) => (
+        <figure>
+          {m.type === 'image' ? (
+            <img
+              src={img(m.url, 1200)}
+              srcset={srcset(m.url, [600, 1000, 1400, 1800])}
+              sizes="(min-width: 1280px) 1280px, 100vw"
+              width={m.width ?? 1200}
+              height={m.height ?? 800}
+              alt={`${project.title}, photo ${i + 1}`}
+              loading={i === 0 ? 'eager' : 'lazy'}
+              decoding="async"
+            />
+          ) : (
+            <video
+              controls
+              playsinline
+              preload="none"
+              poster={poster(m.url)}
+              src={videoSrc(m.url)}
+              width={m.width ?? 1280}
+              height={m.height ?? 720}
+            ></video>
+          )}
+        </figure>
+      ))}
+    </div>
+  </article>
+</Base>

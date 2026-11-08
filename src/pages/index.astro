@@ -1,11 +1,74 @@
 ---
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
+import Base from '../layouts/Base.astro';
+import { supabase } from '../lib/supabase.js';
+import { img, srcset, og } from '../lib/media.js';
+import { site } from '../config.js';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+const { data, error } = await supabase
+  .from('projects')
+  .select('id,title,slug,location,year,category,cover_url')
+  .eq('published', true)
+  .order('created_at', { ascending: false });
+if (error) throw new Error(`Could not load projects: ${error.message}`);
+
+const projects = data ?? [];
+const [hero, ...rest] = projects;
+const cells = hero
+  ? [['Project', hero.title], ['Location', hero.location], ['Year', hero.year], ['Type', hero.category]].filter(([, v]) => v)
+  : [];
+const ogImage = hero?.cover_url ? og(hero.cover_url) : undefined;
 ---
+<Base description={site.tagline} image={ogImage}>
+  <div class="wrap">
+    <section class="intro">
+      <h1>{site.headline}</h1>
+      <p>{site.intro}</p>
+    </section>
 
-<Layout>
-	<Welcome />
-</Layout>
+    {hero ? (
+      <a class="hero" href={`/projects/${hero.slug}/`}>
+        {hero.cover_url ? (
+          <img
+            src={img(hero.cover_url, 1600)}
+            srcset={srcset(hero.cover_url, [800, 1200, 1600, 2000])}
+            sizes="(min-width: 1280px) 1280px, 100vw"
+            width="1600" height="686"
+            alt={hero.title}
+            fetchpriority="high"
+            decoding="async"
+          />
+        ) : <div class="ph"></div>}
+        <dl class="titleblock">
+          {cells.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
+        </dl>
+      </a>
+    ) : (
+      <p class="empty">No projects have been published yet.</p>
+    )}
+
+    {rest.length > 0 && (
+      <section class="projects">
+        <h2>More projects</h2>
+        <div class="grid">
+          {rest.map((p) => (
+            <a class="item" href={`/projects/${p.slug}/`}>
+              {p.cover_url ? (
+                <img
+                  src={img(p.cover_url, 800)}
+                  srcset={srcset(p.cover_url, [400, 800, 1200])}
+                  sizes="(min-width: 900px) 33vw, (min-width: 560px) 50vw, 100vw"
+                  width="800" height="600"
+                  alt={p.title}
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : <div class="ph"></div>}
+              <h3>{p.title}</h3>
+              <p>{[p.location, p.year].filter(Boolean).join(', ')}</p>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+  </div>
+</Base>
