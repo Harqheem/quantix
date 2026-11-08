@@ -29,8 +29,8 @@ const ogImage = hero?.cover_url ? og(hero.cover_url) : undefined;
       <a class="hero" href={`/projects/${hero.slug}/`}>
         {hero.cover_url ? (
           <img
-            src={img(hero.cover_url, 1600)}
-            srcset={srcset(hero.cover_url, [800, 1200, 1600, 2000])}
+            src={img(hero.cover_url, 1600, '21:9')}
+            srcset={srcset(hero.cover_url, [800, 1200, 1600, 2000], '21:9')}
             sizes="(min-width: 1280px) 1280px, 100vw"
             width="1600" height="686"
             alt={hero.title}
@@ -54,8 +54,8 @@ const ogImage = hero?.cover_url ? og(hero.cover_url) : undefined;
             <a class="item" href={`/projects/${p.slug}/`}>
               {p.cover_url ? (
                 <img
-                  src={img(p.cover_url, 800)}
-                  srcset={srcset(p.cover_url, [400, 800, 1200])}
+                  src={img(p.cover_url, 800, '4:3')}
+                  srcset={srcset(p.cover_url, [400, 800, 1200], '4:3')}
                   sizes="(min-width: 900px) 33vw, (min-width: 560px) 50vw, 100vw"
                   width="800" height="600"
                   alt={p.title}
@@ -72,3 +72,4 @@ const ogImage = hero?.cover_url ? og(hero.cover_url) : undefined;
     )}
   </div>
 </Base>
+

@@ -80,7 +80,8 @@ h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); margin-bottom: 1.25rem; }
 .prose p { margin: 0 0 1em; }
 .gallery { display: grid; gap: 1.25rem; margin-top: 2.5rem; }
 .gallery figure { margin: 0; }
-.gallery img, .gallery video { width: 100%; height: auto; background: var(--line); }
+.gallery img { width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; background: var(--line); }
+.gallery video { width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: contain; background: var(--ink); }
 
 /* Footer */
 .site-footer { background: var(--ink); color: var(--paper); padding-block: 2.5rem; }
@@ -120,5 +121,20 @@ h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); margin-bottom: 1.25rem; }
 .plist .state { color: var(--steel); font-size: 0.9rem; margin-left: 0.5rem; }
 .plist .actions { display: flex; gap: 0.5rem; }
 .plist .actions button { padding: 0.4rem 0.7rem; font-size: 0.9rem; }
-
+.admin .proj { border-bottom: 1px solid var(--line); }
+.admin .proj summary { cursor: pointer; padding: 0.9rem 0; }
+.admin .proj .name { font-weight: 600; }
+.admin .proj .state { color: var(--steel); font-size: 0.9rem; margin-left: 0.6rem; }
+.admin .proj-body { display: grid; gap: 1rem; padding-bottom: 1.5rem; }
+.admin .proj-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.admin .proj-actions button { padding: 0.4rem 0.7rem; font-size: 0.9rem; }
+.admin .mgrid { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 560px) { .admin .mgrid { grid-template-columns: repeat(3, 1fr); } }
+.admin .mgrid li { display: grid; gap: 0.35rem; align-content: start; }
+.admin .mgrid img { width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; background: var(--line); }
+.admin .tag { font-size: 0.85rem; color: var(--steel); }
+.admin .mactions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.admin .mactions button { padding: 0.3rem 0.55rem; font-size: 0.85rem; }
+.admin .hint { margin: 0; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+/* https://api.cloudflare.com/client/v4/workers/builds/deploy_hooks/616aacfc-f08b-4f51-9bb9-6b62a551fd86 */

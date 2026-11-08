@@ -41,32 +41,32 @@ const paragraphs = (project.description ?? '').split(/\n\s*\n/).filter(Boolean);
     )}
 
     <div class="gallery">
-      {media.map((m, i) => (
-        <figure>
-          {m.type === 'image' ? (
+      {media.map((m, i) =>
+        m.type === 'image' ? (
+          <a href={img(m.url, 2000)} target="_blank" rel="noopener">
             <img
-              src={img(m.url, 1200)}
-              srcset={srcset(m.url, [600, 1000, 1400, 1800])}
-              sizes="(min-width: 1280px) 1280px, 100vw"
-              width={m.width ?? 1200}
-              height={m.height ?? 800}
+              src={img(m.url, 1200, '3:2')}
+              srcset={srcset(m.url, [600, 1000, 1400], '3:2')}
+              sizes="(min-width: 760px) 50vw, 100vw"
+              width="1200"
+              height="800"
               alt={`${project.title}, photo ${i + 1}`}
-              loading={i === 0 ? 'eager' : 'lazy'}
+              loading={i < 2 ? 'eager' : 'lazy'}
               decoding="async"
             />
-          ) : (
-            <video
-              controls
-              playsinline
-              preload="none"
-              poster={poster(m.url)}
-              src={videoSrc(m.url)}
-              width={m.width ?? 1280}
-              height={m.height ?? 720}
-            ></video>
-          )}
-        </figure>
-      ))}
+          </a>
+        ) : (
+          <video
+            controls
+            playsinline
+            preload="none"
+            poster={poster(m.url)}
+            src={videoSrc(m.url)}
+            width="1200"
+            height="800"
+          ></video>
+        )
+      )}
     </div>
   </article>
 </Base>
