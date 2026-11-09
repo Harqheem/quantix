@@ -2,8 +2,13 @@
 import '../styles/global.css';
 import { site } from '../config.js';
 
-const { title, description = site.tagline, image, noindex = false } = Astro.props;
+const { title, description = site.tagline, image, noindex = false, bare = false } = Astro.props;
 const fullTitle = title ? `${title} | ${site.name}` : `${site.name}, ${site.role}`;
+const base = (site.siteUrl ?? '').replace(/\/$/, '');
+const canonical = base ? base + Astro.url.pathname : undefined;
+const wa = `https://wa.me/${site.whatsapp}${site.whatsappMessage ? `?text=${encodeURIComponent(site.whatsappMessage)}` : ''}`;
+const hasAbout = (site.about?.length ?? 0) + (site.services?.length ?? 0) > 0;
+const favicon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230f2e4d'/%3E%3Crect y='21' width='32' height='5' fill='%23ffc20e'/%3E%3C/svg%3E";
 ---
 <!doctype html>
 <html lang="en">
@@ -12,33 +17,48 @@ const fullTitle = title ? `${title} | ${site.name}` : `${site.name}, ${site.role
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
+    <meta name="theme-color" content="#0f2e4d" />
     {noindex && <meta name="robots" content="noindex,nofollow" />}
+    {canonical && <link rel="canonical" href={canonical} />}
+    <link rel="icon" href={favicon} />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
+    {canonical && <meta property="og:url" content={canonical} />}
     {image && <meta property="og:image" content={image} />}
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://res.cloudinary.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..800&display=swap" rel="stylesheet" />
+    <slot name="head" />
   </head>
   <body>
-    <header class="wrap site-header">
-      <a href="/" class="brand">{site.name}<span>{site.role}</span></a>
-      <nav><a href="#contact">Contact</a></nav>
-    </header>
-    <main>
-      <slot />
-    </main>
-    <footer id="contact" class="site-footer">
-      <div class="wrap">
-        <p class="footer-name">{site.name}</p>
-        <p>
-          <a href={`mailto:${site.email}`}>{site.email}</a><br />
-          <a href={`https://wa.me/${site.whatsapp}`}>WhatsApp {site.phone}</a>
-        </p>
-      </div>
-    </footer>
+    {!bare && <a class="skip" href="#main">Skip to content</a>}
+    {!bare && (
+      <header class="site-header">
+        <div class="wrap header-row">
+          <a href="/" class="brand">{site.name}<span>{site.role}</span></a>
+          <nav class="nav" aria-label="Main">
+            <a href="/#projects">Projects</a>
+            {hasAbout && <a href="/#about">About</a>}
+            <a href="/#contact">Contact</a>
+          </nav>
+          <a class="btn btn-primary btn-sm" href={wa}>WhatsApp</a>
+        </div>
+      </header>
+    )}
+    {bare ? <slot /> : <main id="main"><slot /></main>}
+    {!bare && (
+      <footer class="site-footer">
+        <div class="wrap footer-row">
+          <span>&copy; {new Date().getFullYear()} {site.name}</span>
+          <span class="footer-links">
+            <a href={`mailto:${site.email}`}>{site.email}</a>
+            <a href={wa}>WhatsApp</a>
+          </span>
+        </div>
+      </footer>
+    )}
   </body>
 </html>

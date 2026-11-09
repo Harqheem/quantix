@@ -4,72 +4,225 @@ import { supabase } from '../lib/supabase.js';
 import { img, srcset, og } from '../lib/media.js';
 import { site } from '../config.js';
 
-const { data, error } = await supabase
-  .from('projects')
-  .select('id,title,slug,location,year,category,cover_url')
-  .eq('published', true)
-  .order('created_at', { ascending: false });
-if (error) throw new Error(`Could not load projects: ${error.message}`);
+const [projectsRes, mediaRes] = await Promise.all([
+  supabase
+    .from('projects')
+    .select('id,title,slug,location,year,category,cover_url')
+    .eq('published', true)
+    .order('created_at', { ascending: false }),
+  supabase.from('project_media').select('project_id,type'),
+]);
+if (projectsRes.error) throw new Error(`Could not load projects: ${projectsRes.error.message}`);
+if (mediaRes.error) throw new Error(`Could not load media: ${mediaRes.error.message}`);
 
-const projects = data ?? [];
-const [hero, ...rest] = projects;
-const cells = hero
+const projects = projectsRes.data ?? [];
+
+// Count photos and videos per project for the card tags.
+const counts = {};
+for (const m of mediaRes.data ?? []) {
+  const c = (counts[m.project_id] ??= { photos: 0, videos: 0 });
+  if (m.type === 'video') c.videos++;
+  else c.photos++;
+}
+const plural = (n, one) => `${n} ${one}${n === 1 ? '' : 's'}`;
+const fileLine = (id) => {
+  const c = counts[id];
+  if (!c) return '';
+  return [c.photos && plural(c.photos, 'photo'), c.videos && plural(c.videos, 'video')].filter(Boolean).join(', ');
+};
+
+const [hero] = projects;
+const categories = [...new Set(projects.map((p) => p.category?.trim()).filter(Boolean))].sort();
+const places = new Set(projects.map((p) => p.location?.trim().toLowerCase()).filter(Boolean)).size;
+const years = projects.map((p) => p.year).filter(Boolean);
+const facts = [
+  projects.length && ['Projects', projects.length],
+  places && ['Locations', places],
+  years.length && ['Active since', Math.min(...years)],
+].filter(Boolean);
+
+const heroCells = hero
   ? [['Project', hero.title], ['Location', hero.location], ['Year', hero.year], ['Type', hero.category]].filter(([, v]) => v)
   : [];
-const ogImage = hero?.cover_url ? og(hero.cover_url) : undefined;
+
+const about = site.about ?? [];
+const services = site.services ?? [];
+const credentials = site.credentials ?? [];
+const hasAbout = about.length + services.length > 0;
+
+const base = (site.siteUrl ?? '').replace(/\/$/, '');
+const wa = `https://wa.me/${site.whatsapp}${site.whatsappMessage ? `?text=${encodeURIComponent(site.whatsappMessage)}` : ''}`;
+const ld = {
+  '@context': 'https://schema.org',
+  '@type': 'ProfessionalService',
+  name: site.name,
+  description: site.tagline,
+  email: site.email,
+  telephone: site.phone,
+  areaServed: site.location,
+  ...(base && { url: base }),
+};
 ---
-<Base description={site.tagline} image={ogImage}>
-  <div class="wrap">
-    <section class="intro">
-      <h1>{site.headline}</h1>
-      <p>{site.intro}</p>
-    </section>
+<Base description={site.tagline} image={hero?.cover_url ? og(hero.cover_url) : undefined}>
+  <script type="application/ld+json" slot="head" set:html={JSON.stringify(ld)} />
 
-    {hero ? (
-      <a class="hero" href={`/projects/${hero.slug}/`}>
-        {hero.cover_url ? (
-          <img
-            src={img(hero.cover_url, 1600, '21:9')}
-            srcset={srcset(hero.cover_url, [800, 1200, 1600, 2000], '21:9')}
-            sizes="(min-width: 1280px) 1280px, 100vw"
-            width="1600" height="686"
-            alt={hero.title}
-            fetchpriority="high"
-            decoding="async"
-          />
-        ) : <div class="ph"></div>}
-        <dl class="titleblock">
-          {cells.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
-        </dl>
-      </a>
-    ) : (
-      <p class="empty">No projects have been published yet.</p>
-    )}
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div>
+          <h1 class="rise" style="--i:0">{site.headline ?? site.role}</h1>
+          {site.intro && <p class="lead rise" style="--i:1">{site.intro}</p>}
+          <div class="cta-row rise" style="--i:2">
+            <a class="btn btn-primary" href="#projects">View projects</a>
+            <a class="btn" href={wa}>Message on WhatsApp</a>
+          </div>
+        </div>
+        {facts.length > 0 && (
+          <dl class="schedule rise" style="--i:3" aria-label="Work at a glance">
+            {facts.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
+          </dl>
+        )}
+      </div>
 
-    {rest.length > 0 && (
-      <section class="projects">
-        <h2>More projects</h2>
-        <div class="grid">
-          {rest.map((p) => (
-            <a class="item" href={`/projects/${p.slug}/`}>
+      {hero && (
+        <a class="hero-fig" href={`/projects/${hero.slug}/`} aria-label={`Open project: ${hero.title}`}>
+          {hero.cover_url ? (
+            <picture>
+              <source
+                media="(min-width: 900px)"
+                srcset={srcset(hero.cover_url, [1200, 1600, 2000], '21:9')}
+                sizes="(min-width: 1280px) 1240px, 100vw"
+              />
+              <img
+                src={img(hero.cover_url, 900, '4:3')}
+                srcset={srcset(hero.cover_url, [600, 900, 1200], '4:3')}
+                sizes="100vw"
+                width="1200"
+                height="900"
+                alt=""
+                fetchpriority="high"
+                decoding="async"
+              />
+            </picture>
+          ) : <div class="ph"></div>}
+          <dl class="titleblock">
+            {heroCells.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
+            <div class="tb-open"><dt>{fileLine(hero.id) || 'Project'}</dt><dd>Open project</dd></div>
+          </dl>
+        </a>
+      )}
+    </div>
+  </section>
+
+  <section class="section" id="projects" aria-labelledby="projects-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="projects-title">Projects</h2>
+        {categories.length > 1 && (
+          <div class="filters" id="filters" role="group" aria-label="Filter projects by type" hidden>
+            <button type="button" class="filter" data-filter="all" aria-pressed="true">All</button>
+            {categories.map((c) => <button type="button" class="filter" data-filter={c} aria-pressed="false">{c}</button>)}
+          </div>
+        )}
+      </div>
+
+      {projects.length ? (
+        <div class="grid" id="grid">
+          {projects.map((p, i) => (
+            <a class="card" href={`/projects/${p.slug}/`} data-type={p.category?.trim() ?? ''}>
               {p.cover_url ? (
                 <img
                   src={img(p.cover_url, 800, '4:3')}
                   srcset={srcset(p.cover_url, [400, 800, 1200], '4:3')}
-                  sizes="(min-width: 900px) 33vw, (min-width: 560px) 50vw, 100vw"
-                  width="800" height="600"
-                  alt={p.title}
-                  loading="lazy"
+                  sizes="(min-width: 960px) 33vw, (min-width: 620px) 50vw, 100vw"
+                  width="800"
+                  height="600"
+                  alt=""
+                  loading={i < 3 ? 'eager' : 'lazy'}
                   decoding="async"
                 />
               ) : <div class="ph"></div>}
-              <h3>{p.title}</h3>
-              <p>{[p.location, p.year].filter(Boolean).join(', ')}</p>
+              <div class="card-body">
+                <h3>{p.title}</h3>
+                {[p.location, p.year].filter(Boolean).length > 0 && (
+                  <p class="card-meta">{[p.location, p.year].filter(Boolean).join(', ')}</p>
+                )}
+                {(p.category || fileLine(p.id)) && (
+                  <ul class="card-tags">
+                    {p.category && <li>{p.category}</li>}
+                    {fileLine(p.id) && <li>{fileLine(p.id)}</li>}
+                  </ul>
+                )}
+              </div>
             </a>
           ))}
         </div>
-      </section>
-    )}
-  </div>
+      ) : (
+        <p class="empty">No projects have been published yet. Check back soon.</p>
+      )}
+      <p class="sr-only" id="filter-status" role="status"></p>
+    </div>
+  </section>
+
+  {hasAbout && (
+    <section class="section section-sheet" id="about" aria-labelledby="about-title">
+      <div class="wrap about-grid">
+        <div class="about-copy">
+          <h2 id="about-title">About</h2>
+          {about.map((p) => <p>{p}</p>)}
+        </div>
+        <div>
+          {services.length > 0 && (
+            <>
+              <h3 class="subhead">What I do</h3>
+              <ul class="services">{services.map((s) => <li>{s}</li>)}</ul>
+            </>
+          )}
+          {credentials.length > 0 && <ul class="credentials">{credentials.map((c) => <li>{c}</li>)}</ul>}
+        </div>
+      </div>
+    </section>
+  )}
+
+  <section class="section contact" id="contact" aria-labelledby="contact-title">
+    <div class="wrap contact-grid">
+      <div>
+        <h2 id="contact-title">{site.contactHeadline ?? 'Have a project in mind?'}</h2>
+        <p>{site.contactText ?? 'Tell me about the site, the scope and your timeline, and I will get back to you.'}</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href={wa}>Message on WhatsApp</a>
+          <a class="btn" href={`mailto:${site.email}`}>Send an email</a>
+        </div>
+      </div>
+      <dl class="contact-list">
+        <div><dt>Email</dt><dd><a href={`mailto:${site.email}`}>{site.email}</a></dd></div>
+        <div><dt>Phone</dt><dd><a href={`tel:${site.phone.replace(/\s/g, '')}`}>{site.phone}</a></dd></div>
+        {site.location && <div><dt>Based in</dt><dd>{site.location}</dd></div>}
+      </dl>
+    </div>
+  </section>
 </Base>
 
+<script>
+  // Progressive enhancement: the type filter only appears when JavaScript is running.
+  const bar = document.getElementById('filters');
+  if (bar) {
+    bar.hidden = false;
+    const chips = bar.querySelectorAll('[data-filter]');
+    const cards = document.querySelectorAll('#grid [data-type]');
+    const status = document.getElementById('filter-status');
+    chips.forEach((chip) =>
+      chip.addEventListener('click', () => {
+        const f = chip.dataset.filter;
+        let shown = 0;
+        chips.forEach((c) => c.setAttribute('aria-pressed', String(c === chip)));
+        cards.forEach((card) => {
+          const match = f === 'all' || card.dataset.type === f;
+          card.hidden = !match;
+          if (match) shown++;
+        });
+        status.textContent = `Showing ${shown} ${shown === 1 ? 'project' : 'projects'}${f === 'all' ? '' : ` of type ${f}`}.`;
+      })
+    );
+  }
+</script>

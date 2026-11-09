@@ -1,66 +1,106 @@
 ---
 import Base from '../../layouts/Base.astro';
 ---
-<Base title="Admin" noindex={true}>
-  <div class="wrap admin">
-    <section id="login" hidden>
-      <h1>Sign in</h1>
-      <form id="login-form">
-        <label>Email
+<Base title="Admin" noindex={true} bare={true}>
+  <div class="app">
+    <section id="login" class="login" hidden aria-labelledby="login-title">
+      <form id="login-form" class="login-card">
+        <div>
+          <h1 id="login-title">Sign in</h1>
+          <p class="muted">Manage your projects, photos and videos.</p>
+        </div>
+        <label class="field">Email
           <input type="email" id="email" required autocomplete="username" />
         </label>
-        <label>Password
+        <label class="field">Password
           <input type="password" id="password" required autocomplete="current-password" />
         </label>
-        <button type="submit">Sign in</button>
-        <p id="login-msg" class="msg" role="alert"></p>
+        <label class="check"><input type="checkbox" id="show-pw" /> Show password</label>
+        <button class="btn btn-primary" type="submit" id="login-btn">Sign in</button>
+        <p id="login-msg" class="form-error" role="alert"></p>
       </form>
     </section>
 
-    <section id="dashboard" hidden>
-      <div class="admin-head">
-        <h1>Manage projects</h1>
-        <button id="signout" class="ghost" type="button">Sign out</button>
-      </div>
-
-      <h2>Create a project</h2>
-      <form id="project-form">
-        <label>Project name
-          <input type="text" id="title" required maxlength="120" />
-        </label>
-        <div class="row">
-          <label>Location
-            <input type="text" id="location" maxlength="80" />
-          </label>
-          <label>Year
-            <input type="number" id="year" min="1990" max="2100" inputmode="numeric" />
-          </label>
-          <label>Type of work
-            <input type="text" id="category" list="categories" maxlength="60" />
-            <datalist id="categories">
-              <option value="Building"></option>
-              <option value="Road"></option>
-              <option value="Drainage"></option>
-              <option value="Bridge"></option>
-              <option value="Water supply"></option>
-              <option value="Renovation"></option>
-            </datalist>
-          </label>
+    <div id="dashboard" hidden>
+      <header class="appbar">
+        <div class="wrap">
+          <strong class="appbar-title">Admin</strong>
+          <div class="appbar-actions">
+            <a class="btn btn-sm btn-light" href="/" target="_blank" rel="noopener">View site</a>
+            <button id="signout" class="btn btn-sm btn-light" type="button">Sign out</button>
+          </div>
         </div>
-        <label>Description
-          <textarea id="description" maxlength="3000"></textarea>
-          <span class="hint">Leave a blank line between paragraphs.</span>
-        </label>
-        <button id="submit-btn" type="submit">Create project</button>
-        <p id="status" class="msg" role="status"></p>
-      </form>
+      </header>
 
-      <h2>Your projects</h2>
-      <p class="hint">Open a project to add photos and videos. A new project stays hidden until you choose Show on site.</p>
-      <p id="list-status" class="msg" role="status"></p>
-      <div id="project-list"></div>
-    </section>
+      <main class="wrap app-main">
+        <div class="page-head">
+          <div>
+            <h1>Projects</h1>
+            <p class="muted" id="summary"></p>
+          </div>
+          <button id="new-project" class="btn btn-primary" type="button">New project</button>
+        </div>
+
+        <div class="stats" aria-label="Totals">
+          <div class="stat"><b id="stat-projects">0</b><span>Projects</span></div>
+          <div class="stat"><b id="stat-visible">0</b><span>Visible on site</span></div>
+          <div class="stat"><b id="stat-files">0</b><span>Photos and videos</span></div>
+        </div>
+
+        <div id="project-list" aria-busy="true"></div>
+      </main>
+    </div>
   </div>
+
+  <dialog id="project-dialog" aria-labelledby="dialog-title">
+    <form id="project-form" class="dlg">
+      <h2 id="dialog-title">New project</h2>
+      <label class="field">Project name
+        <input type="text" id="f-title" required maxlength="120" autocomplete="off" />
+      </label>
+      <div class="row3">
+        <label class="field">Location
+          <input type="text" id="f-location" maxlength="80" autocomplete="off" />
+        </label>
+        <label class="field">Year
+          <input type="number" id="f-year" min="1990" max="2100" inputmode="numeric" />
+        </label>
+        <label class="field">Type of work
+          <input type="text" id="f-category" list="categories" maxlength="60" autocomplete="off" />
+          <datalist id="categories">
+            <option value="Building"></option>
+            <option value="Road"></option>
+            <option value="Drainage"></option>
+            <option value="Bridge"></option>
+            <option value="Water supply"></option>
+            <option value="Renovation"></option>
+          </datalist>
+        </label>
+      </div>
+      <label class="field">Description
+        <textarea id="f-description" maxlength="3000"></textarea>
+        <span class="help">Leave a blank line between paragraphs.</span>
+      </label>
+      <p id="dialog-msg" class="form-error" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn" id="cancel-project">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="save-btn">Create project</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+    <form method="dialog" class="dlg">
+      <h2 id="confirm-title"></h2>
+      <p id="confirm-body"></p>
+      <div class="dlg-actions">
+        <button class="btn" value="cancel">Cancel</button>
+        <button class="btn btn-danger-solid" value="ok" id="confirm-ok"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </Base>
 
 <script>
@@ -71,6 +111,7 @@ import Base from '../../layouts/Base.astro';
   const imagePreset = import.meta.env.PUBLIC_CLOUDINARY_IMAGE_PRESET;
   const videoPreset = import.meta.env.PUBLIC_CLOUDINARY_VIDEO_PRESET || imagePreset;
   const MAX_VIDEO_MB = 100;
+  const LIVE_NOTE = 'The live site updates in a minute or two.';
 
   const $ = (id) => document.getElementById(id);
   const el = (tag, props = {}, ...kids) => {
@@ -78,14 +119,42 @@ import Base from '../../layouts/Base.astro';
     node.append(...kids);
     return node;
   };
-  const flash = (msg) => { $('list-status').textContent = msg; };
-  const openIds = new Set(); // keeps projects expanded after the list refreshes
-
+  const plural = (n, one) => `${n} ${one}${n === 1 ? '' : 's'}`;
+  const fmtSize = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
   const slugify = (s) =>
     s.toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '').trim()
       .replace(/[\s_]+/g, '-').replace(/-+/g, '-').slice(0, 60) || 'project';
 
-  // Resize photos in the browser so big phone shots stay under Cloudinary's free file limit.
+  let projects = [];
+  let media = [];
+  let editing = null; // the project being edited, or null while creating
+  const openIds = new Set(); // keeps projects expanded after the list refreshes
+
+  /* ---------- Feedback: snackbar and confirm dialog ---------- */
+  let toastTimer;
+  function toast(msg, bad = false) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.toggle('bad', bad);
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), bad ? 8000 : 4500);
+  }
+
+  function ask(title, body, label) {
+    const d = $('confirm-dialog');
+    $('confirm-title').textContent = title;
+    $('confirm-body').textContent = body;
+    $('confirm-ok').textContent = label;
+    d.returnValue = 'cancel';
+    return new Promise((resolve) => {
+      d.addEventListener('close', () => resolve(d.returnValue === 'ok'), { once: true });
+      d.showModal();
+    });
+  }
+
+  /* ---------- Cloudinary upload ---------- */
+  // Resize photos in the browser so large phone shots stay under Cloudinary's free file limit.
   async function shrink(file, max = 1920) {
     if (!file.type.startsWith('image/') || file.type === 'image/gif') return file;
     const bmp = await createImageBitmap(file);
@@ -98,192 +167,407 @@ import Base from '../../layouts/Base.astro';
     return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
   }
 
-  async function upload(file) {
+  async function uploadFile(file, onProgress) {
     const isVideo = file.type.startsWith('video/');
-    if (isVideo && file.size > MAX_VIDEO_MB * 1024 * 1024) {
-      throw new Error(`${file.name} is over ${MAX_VIDEO_MB} MB. Trim or compress it, then try again.`);
-    }
     const body = new FormData();
     body.append('file', isVideo ? file : await shrink(file));
     body.append('upload_preset', isVideo ? videoPreset : imagePreset);
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/${isVideo ? 'video' : 'image'}/upload`, {
-      method: 'POST',
-      body,
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloud}/${isVideo ? 'video' : 'image'}/upload`);
+      xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
+      xhr.onerror = () => reject(new Error('The connection dropped. Check your internet and try again.'));
+      xhr.onload = () => {
+        let json = {};
+        try { json = JSON.parse(xhr.responseText); } catch {}
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve({
+            type: isVideo ? 'video' : 'image',
+            public_id: json.public_id,
+            url: json.secure_url,
+            width: json.width ?? null,
+            height: json.height ?? null,
+          });
+        } else {
+          reject(new Error(json.error?.message || 'Cloudinary rejected this file.'));
+        }
+      };
+      xhr.send(body);
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error?.message || `Could not upload ${file.name}.`);
-    return {
-      type: isVideo ? 'video' : 'image',
-      public_id: json.public_id,
-      url: json.secure_url,
-      width: json.width ?? null,
-      height: json.height ?? null,
-    };
   }
 
-  // Small preview used in the admin lists.
   const thumb = (m) =>
     m.type === 'video'
-      ? m.url.replace('/upload/', '/upload/so_0,f_jpg,q_auto,c_fill,ar_3:2,w_300/').replace(/\.[a-z0-9]+$/i, '.jpg')
-      : m.url.replace('/upload/', '/upload/f_auto,q_auto,c_fill,ar_3:2,g_auto,w_300/');
+      ? m.url.replace('/upload/', '/upload/so_0,f_jpg,q_auto,c_fill,ar_3:2,w_320/').replace(/\.[a-z0-9]+$/i, '.jpg')
+      : m.url.replace('/upload/', '/upload/f_auto,q_auto,c_fill,ar_3:2,g_auto,w_320/');
+  const coverThumb = (url) => url.replace('/upload/', '/upload/f_auto,q_auto,c_fill,ar_1:1,g_auto,w_128/');
 
-  // The first photo is the cover; if there are only videos, use the first video's frame.
+  // The first photo is the cover; with only videos, use the first video's frame.
   const pickCover = (items) => {
     const firstImage = items.find((m) => m.type === 'image');
     if (firstImage) return firstImage.url;
     return items[0] ? poster(items[0].url) : null;
   };
 
+  /* ---------- Data ---------- */
+  async function loadAll() {
+    const [pr, mr] = await Promise.all([
+      supabase
+        .from('projects')
+        .select('id,title,slug,description,location,year,category,published,cover_url,created_at')
+        .order('created_at', { ascending: false }),
+      supabase.from('project_media').select('*').order('sort_order'),
+    ]);
+    if (pr.error || mr.error) {
+      $('project-list').setAttribute('aria-busy', 'false');
+      toast('Could not load your projects. Refresh the page and try again.', true);
+      return;
+    }
+    projects = pr.data;
+    media = mr.data;
+    paint();
+  }
+
+  async function refresh(openId) {
+    if (openId) openIds.add(openId);
+    await loadAll();
+  }
+
+  /* ---------- Rendering ---------- */
+  function paint() {
+    const list = $('project-list');
+    list.setAttribute('aria-busy', 'false');
+    list.replaceChildren();
+    $('stat-projects').textContent = projects.length;
+    $('stat-visible').textContent = projects.filter((p) => p.published).length;
+    $('stat-files').textContent = media.length;
+    $('summary').textContent = projects.length ? 'Open a project to add photos and videos or change what shows on the site.' : '';
+
+    if (!projects.length) {
+      const first = el('button', { type: 'button', className: 'btn btn-primary', textContent: 'Create your first project' });
+      first.addEventListener('click', () => openProjectDialog());
+      list.append(
+        el('div', { className: 'empty-state' },
+          el('h2', { textContent: 'No projects yet' }),
+          el('p', { className: 'muted', textContent: 'Create a project, add its photos and videos, then make it visible on the site.' }),
+          first
+        )
+      );
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    for (const p of projects) frag.append(renderProject(p, media.filter((m) => m.project_id === p.id)));
+    list.append(frag);
+  }
+
   function renderProject(p, items) {
     const details = el('details', { className: 'proj', open: openIds.has(p.id) });
     details.addEventListener('toggle', () => (details.open ? openIds.add(p.id) : openIds.delete(p.id)));
 
-    const count = `${items.length} ${items.length === 1 ? 'file' : 'files'}`;
-    const summary = el('summary', {},
-      el('span', { className: 'name', textContent: p.title }),
-      el('span', { className: 'state', textContent: `${p.published ? 'Visible' : 'Hidden'}, ${count}` })
+    const metaLine = [p.location, p.year, p.category].filter(Boolean).join(', ') || 'No details yet';
+    const thumbEl = p.cover_url
+      ? el('img', { className: 'proj-thumb', src: coverThumb(p.cover_url), alt: '', width: 64, height: 64, loading: 'lazy' })
+      : el('span', { className: 'proj-thumb' });
+    details.append(
+      el('summary', {},
+        thumbEl,
+        el('span', { className: 'proj-info' },
+          el('span', { className: 'proj-title', textContent: p.title }),
+          el('span', { className: 'proj-meta', textContent: `${metaLine}. ${plural(items.length, 'file')}` })
+        ),
+        el('span', { className: 'chip ' + (p.published ? 'chip-on' : 'chip-off'), textContent: p.published ? 'Visible' : 'Hidden' })
+      )
     );
 
-    // Project actions
-    const toggle = el('button', { type: 'button', className: 'ghost', textContent: p.published ? 'Hide from site' : 'Show on site' });
-    toggle.addEventListener('click', async () => {
-      const { error } = await supabase.from('projects').update({ published: !p.published }).eq('id', p.id);
-      openIds.add(p.id);
-      await loadProjects();
-      flash(error ? 'Could not update the project.' : 'Saved. The live site updates in a minute or two.');
-    });
+    const body = el('div', { className: 'proj-body' });
 
-    const del = el('button', { type: 'button', className: 'ghost', textContent: 'Delete project' });
-    del.addEventListener('click', async () => {
-      if (!confirm(`Delete "${p.title}" and all its photos and videos from the site? This cannot be undone.`)) return;
-      const { error } = await supabase.from('projects').delete().eq('id', p.id);
-      openIds.delete(p.id);
-      await loadProjects();
-      flash(error ? 'Could not delete the project.' : 'Deleted. The live site updates in a minute or two.');
-    });
-
-    const projActions = el('div', { className: 'proj-actions' }, toggle, del);
-
-    // Media in this project
-    const mediaBlock = items.length
-      ? el('ul', { className: 'mgrid' })
-      : el('p', { className: 'hint', textContent: 'No files yet. Add photos and videos below.' });
-
-    for (const m of items) {
-      const isCover = p.cover_url === m.url || p.cover_url === poster(m.url);
-      const tag = m.type === 'video' ? 'Video' : isCover ? 'Cover photo' : 'Photo';
-      const actions = el('span', { className: 'mactions' });
-
-      if (m.type === 'image' && !isCover) {
-        const cover = el('button', { type: 'button', className: 'ghost', textContent: 'Make cover' });
-        cover.addEventListener('click', async () => {
-          const { error } = await supabase.from('projects').update({ cover_url: m.url }).eq('id', p.id);
-          openIds.add(p.id);
-          await loadProjects();
-          flash(error ? 'Could not change the cover.' : 'Cover updated. The live site updates in a minute or two.');
-        });
-        actions.append(cover);
-      }
-
-      const remove = el('button', { type: 'button', className: 'ghost', textContent: 'Remove' });
-      remove.addEventListener('click', async () => {
-        if (!confirm('Remove this file from the project?')) return;
-        const { error } = await supabase.from('project_media').delete().eq('id', m.id);
-        if (!error) {
-        const remaining = items.filter((x) => x.id !== m.id);
-        await supabase
-          .from('projects')
-          .update(isCover ? { cover_url: pickCover(remaining) } : { published: p.published })
-          .eq('id', p.id);
-      }
-        openIds.add(p.id);
-        await loadProjects();
-        flash(error ? 'Could not remove the file.' : 'Removed. The live site updates in a minute or two.');
-      });
-      actions.append(remove);
-
-      mediaBlock.append(
-        el('li', {},
-          el('img', { src: thumb(m), alt: '', width: 300, height: 200, loading: 'lazy' }),
-          el('span', { className: 'tag', textContent: tag }),
-          actions
-        )
+    if (!p.published) {
+      body.append(
+        el('p', {
+          className: 'notice',
+          textContent: items.length
+            ? 'This project is hidden. Turn on Visible on site when you are ready to publish it.'
+            : 'Add at least one photo or video, then turn on Visible on site.',
+        })
       );
     }
 
-    // Add files to this project
-    const note = el('p', { className: 'msg' });
-    note.setAttribute('role', 'status');
-    const input = el('input', { type: 'file', accept: 'image/*,video/*', multiple: true });
-    const send = el('button', { type: 'button', textContent: 'Upload to this project' });
-    send.addEventListener('click', async () => {
-      const files = [...input.files];
-      if (!files.length) {
-        note.textContent = 'Choose at least one photo or video.';
+    // Project actions
+    const sw = el('button', { type: 'button', className: 'switch' },
+      el('span', { className: 'switch-track' }),
+      el('span', { textContent: 'Visible on site' })
+    );
+    sw.setAttribute('role', 'switch');
+    sw.setAttribute('aria-checked', String(p.published));
+    sw.addEventListener('click', async () => {
+      const next = !p.published;
+      if (next && !items.length) {
+        toast('Add at least one photo or video before making this project visible.', true);
         return;
       }
-      send.disabled = true;
-      try {
-        const uploaded = [];
-        for (let i = 0; i < files.length; i++) {
-          note.textContent = `Uploading ${i + 1} of ${files.length}: ${files[i].name}`;
-          uploaded.push(await upload(files[i]));
-        }
-        note.textContent = 'Saving...';
-        const start = items.reduce((max, m) => Math.max(max, m.sort_order ?? 0), -1) + 1;
-        const { error } = await supabase.from('project_media').insert(
-          uploaded.map((u, i) => ({ project_id: p.id, ...u, sort_order: start + i }))
-        );
-        if (error) throw error;
-        await supabase
-        .from('projects')
-        .update(p.cover_url ? { published: p.published } : { cover_url: pickCover(uploaded) })
-        .eq('id', p.id);
-        openIds.add(p.id);
-        await loadProjects();
-        flash('Added. The live site updates in a minute or two.');
-      } catch (err) {
-        note.textContent = err.message || 'Something went wrong. Try again.';
-        send.disabled = false;
-      }
+      sw.disabled = true;
+      const { error } = await supabase.from('projects').update({ published: next }).eq('id', p.id);
+      await refresh(p.id);
+      toast(error ? 'Could not update the project. Try again.' : `${next ? 'Published' : 'Hidden'}. ${LIVE_NOTE}`, !!error);
     });
 
-    const adder = el('div', { className: 'adder' },
-      el('label', {}, 'Add photos and videos', input,
-        el('span', { className: 'hint', textContent: 'Choose as many as you like. Photos are resized automatically. Keep each video under 100 MB, ideally 15 to 60 seconds.' })
-      ),
-      send,
-      note
-    );
+    const edit = el('button', { type: 'button', className: 'btn btn-sm', textContent: 'Edit details' });
+    edit.addEventListener('click', () => openProjectDialog(p));
 
-    details.append(summary, el('div', { className: 'proj-body' }, projActions, mediaBlock, adder));
+    const del = el('button', { type: 'button', className: 'btn btn-sm btn-danger', textContent: 'Delete project' });
+    del.addEventListener('click', async () => {
+      const ok = await ask('Delete this project?', `"${p.title}" and its ${plural(items.length, 'file')} will be removed from the site. This cannot be undone.`, 'Delete project');
+      if (!ok) return;
+      const { error } = await supabase.from('projects').delete().eq('id', p.id);
+      openIds.delete(p.id);
+      await refresh();
+      toast(error ? 'Could not delete the project. Try again.' : `Deleted. ${LIVE_NOTE}`, !!error);
+    });
+    body.append(el('div', { className: 'proj-actions' }, sw, edit, del));
+
+    // Media in this project
+    if (items.length) {
+      const grid = el('ul', { className: 'mgrid' });
+      for (const m of items) {
+        const isCover = p.cover_url === m.url || p.cover_url === poster(m.url);
+        const actions = el('span', { className: 'mactions' });
+
+        if (m.type === 'image' && !isCover) {
+          const cover = el('button', { type: 'button', className: 'btn btn-sm', textContent: 'Make cover' });
+          cover.addEventListener('click', async () => {
+            const { error } = await supabase.from('projects').update({ cover_url: m.url }).eq('id', p.id);
+            await refresh(p.id);
+            toast(error ? 'Could not change the cover. Try again.' : `Cover updated. ${LIVE_NOTE}`, !!error);
+          });
+          actions.append(cover);
+        }
+
+        const remove = el('button', { type: 'button', className: 'btn btn-sm btn-danger', textContent: 'Remove' });
+        remove.addEventListener('click', async () => {
+          const ok = await ask('Remove this file?', 'It will disappear from the project page. The original stays in your Cloudinary account.', 'Remove file');
+          if (!ok) return;
+          const { error } = await supabase.from('project_media').delete().eq('id', m.id);
+          if (!error) {
+            const remaining = items.filter((x) => x.id !== m.id);
+            // Saving the project afterwards is what tells the site to rebuild.
+            await supabase.from('projects')
+              .update(isCover ? { cover_url: pickCover(remaining) } : { published: p.published })
+              .eq('id', p.id);
+          }
+          await refresh(p.id);
+          toast(error ? 'Could not remove the file. Try again.' : `Removed. ${LIVE_NOTE}`, !!error);
+        });
+        actions.append(remove);
+
+        const label = m.type === 'video' ? 'Video' : isCover ? 'Cover photo' : '';
+        grid.append(
+          el('li', { className: 'mitem' },
+            el('div', { className: 'mthumb' },
+              el('img', { src: thumb(m), alt: '', width: 320, height: 213, loading: 'lazy' }),
+              ...(label ? [el('span', { className: 'badge', textContent: label })] : [])
+            ),
+            actions
+          )
+        );
+      }
+      body.append(grid);
+    }
+
+    body.append(renderUploader(p, items));
+    details.append(body);
     return details;
   }
 
-  async function loadProjects() {
-    const list = $('project-list');
-    const [projectsRes, mediaRes] = await Promise.all([
-      supabase.from('projects').select('id,title,published,cover_url,created_at').order('created_at', { ascending: false }),
-      supabase.from('project_media').select('*').order('sort_order'),
-    ]);
-    list.replaceChildren();
-    if (projectsRes.error || mediaRes.error) {
-      list.textContent = 'Could not load projects. Refresh the page and try again.';
-      return;
-    }
-    if (!projectsRes.data.length) {
-      list.append(el('p', { className: 'hint', textContent: 'No projects yet. Create your first one above.' }));
-      return;
-    }
-    for (const p of projectsRes.data) {
-      list.append(renderProject(p, mediaRes.data.filter((m) => m.project_id === p.id)));
-    }
+  function renderUploader(p, items) {
+    const queue = []; // { file, status: ready | uploading | done | error, progress, error }
+    let busy = false;
+
+    const input = el('input', { type: 'file', accept: 'image/*,video/*', multiple: true, className: 'sr-only' });
+    const drop = el('label', { className: 'drop' },
+      input,
+      el('strong', { textContent: 'Add photos and videos' }),
+      el('span', { className: 'help', textContent: 'Drag files here or tap to choose them. Videos can be up to 100 MB; under a minute works best.' })
+    );
+    const list = el('ul', { className: 'queue' });
+    const send = el('button', { type: 'button', className: 'btn btn-primary', hidden: true });
+
+    const paintQueue = () => {
+      list.replaceChildren();
+      for (const job of queue) {
+        const row = el('li', { className: 'qrow' + (job.status === 'error' ? ' err' : '') });
+        row.append(el('span', { className: 'qname', textContent: job.file.name }));
+        if (!busy && (job.status === 'ready' || job.status === 'error')) {
+          const rm = el('button', { type: 'button', className: 'btn btn-sm', textContent: 'Remove' });
+          rm.setAttribute('aria-label', `Remove ${job.file.name} from the list`);
+          rm.addEventListener('click', () => {
+            queue.splice(queue.indexOf(job), 1);
+            paintQueue();
+          });
+          row.append(rm);
+        } else {
+          row.append(el('span'));
+        }
+        const state = { ready: fmtSize(job.file.size), uploading: `Uploading, ${fmtSize(job.file.size)}`, done: 'Uploaded', error: '' }[job.status];
+        if (state) row.append(el('span', { className: 'qmeta', textContent: state }));
+        if (job.status === 'uploading' || job.status === 'done') {
+          job.bar = el('progress', { max: 1, value: job.status === 'done' ? 1 : job.progress });
+          row.append(job.bar);
+        }
+        if (job.status === 'error') row.append(el('p', { className: 'qerr', textContent: job.error }));
+        list.append(row);
+      }
+      const ready = queue.filter((j) => j.status === 'ready').length;
+      send.hidden = ready === 0 && !busy;
+      send.disabled = busy;
+      send.textContent = busy ? 'Uploading...' : `Upload ${plural(ready, 'file')}`;
+    };
+
+    const addFiles = (fileList) => {
+      for (const file of fileList) {
+        const isVideo = file.type.startsWith('video/');
+        const job = { file, status: 'ready', progress: 0, error: '' };
+        if (!isVideo && !file.type.startsWith('image/')) {
+          job.status = 'error';
+          job.error = 'Only photos and videos can be added.';
+        } else if (isVideo && file.size > MAX_VIDEO_MB * 1048576) {
+          job.status = 'error';
+          job.error = `This video is over ${MAX_VIDEO_MB} MB. Trim or compress it, then add it again.`;
+        }
+        queue.push(job);
+      }
+      paintQueue();
+    };
+
+    input.addEventListener('change', () => {
+      addFiles(input.files);
+      input.value = '';
+    });
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+    drop.addEventListener('drop', (e) => {
+      e.preventDefault();
+      drop.classList.remove('over');
+      addFiles(e.dataTransfer.files);
+    });
+
+    send.addEventListener('click', async () => {
+      const jobs = queue.filter((j) => j.status === 'ready');
+      if (!jobs.length || busy) return;
+      busy = true;
+      const done = [];
+      for (const job of jobs) {
+        job.status = 'uploading';
+        paintQueue();
+        try {
+          done.push(await uploadFile(job.file, (f) => { job.progress = f; if (job.bar) job.bar.value = f; }));
+          job.status = 'done';
+        } catch (err) {
+          job.status = 'error';
+          job.error = err.message || 'This file could not be uploaded.';
+        }
+      }
+      busy = false;
+      const failed = jobs.filter((j) => j.status === 'error').length;
+
+      if (!done.length) {
+        paintQueue();
+        toast('Nothing was uploaded. See the messages under each file.', true);
+        return;
+      }
+      const start = items.reduce((max, m) => Math.max(max, m.sort_order ?? 0), -1) + 1;
+      const { error } = await supabase.from('project_media').insert(
+        done.map((u, i) => ({ project_id: p.id, ...u, sort_order: start + i }))
+      );
+      if (error) {
+        paintQueue();
+        toast('The files uploaded but could not be saved to the project. Try again.', true);
+        return;
+      }
+      // Saving the project afterwards is what tells the site to rebuild.
+      await supabase.from('projects')
+        .update(p.cover_url ? { published: p.published } : { cover_url: pickCover(done) })
+        .eq('id', p.id);
+      await refresh(p.id);
+      toast(
+        failed
+          ? `Added ${plural(done.length, 'file')}. ${failed} could not be uploaded.`
+          : `Added ${plural(done.length, 'file')}. ${LIVE_NOTE}`,
+        failed > 0
+      );
+    });
+
+    return el('div', { className: 'uploader', style: 'display:grid;gap:.75rem' }, drop, list, el('div', {}, send));
   }
 
+  /* ---------- Project dialog (create and edit) ---------- */
+  function openProjectDialog(p = null) {
+    editing = p;
+    $('dialog-title').textContent = p ? 'Edit project details' : 'New project';
+    $('save-btn').textContent = p ? 'Save changes' : 'Create project';
+    $('f-title').value = p?.title ?? '';
+    $('f-location').value = p?.location ?? '';
+    $('f-year').value = p?.year ?? '';
+    $('f-category').value = p?.category ?? '';
+    $('f-description').value = p?.description ?? '';
+    $('dialog-msg').textContent = '';
+    $('project-dialog').showModal();
+    $('f-title').focus();
+  }
+
+  $('new-project').addEventListener('click', () => openProjectDialog());
+  $('cancel-project').addEventListener('click', () => $('project-dialog').close());
+
+  $('project-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = $('save-btn');
+    const msg = $('dialog-msg');
+    const title = $('f-title').value.trim();
+    if (!title) {
+      msg.textContent = 'Enter a project name.';
+      $('f-title').focus();
+      return;
+    }
+    const fields = {
+      title,
+      description: $('f-description').value.trim() || null,
+      location: $('f-location').value.trim() || null,
+      year: $('f-year').value ? parseInt($('f-year').value, 10) : null,
+      category: $('f-category').value.trim() || null,
+    };
+    btn.disabled = true;
+    msg.textContent = '';
+    try {
+      if (editing) {
+        const { error } = await supabase.from('projects').update(fields).eq('id', editing.id);
+        if (error) throw error;
+        openIds.add(editing.id);
+        toast(`Saved. ${LIVE_NOTE}`);
+      } else {
+        const row = { ...fields, slug: slugify(title), published: false };
+        let { data, error } = await supabase.from('projects').insert(row).select('id').single();
+        if (error?.code === '23505') {
+          // Another project already uses this address; add a short suffix and retry once.
+          row.slug += '-' + Math.random().toString(36).slice(2, 6);
+          ({ data, error } = await supabase.from('projects').insert(row).select('id').single());
+        }
+        if (error) throw error;
+        openIds.add(data.id);
+        toast('Project created. Add photos and videos, then make it visible.');
+      }
+      $('project-dialog').close();
+      await loadAll();
+    } catch (err) {
+      msg.textContent = err.message || 'Could not save the project. Try again.';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  /* ---------- Sign in and out ---------- */
   function render(session) {
     $('login').hidden = !!session;
     $('dashboard').hidden = !session;
-    if (session) loadProjects();
+    if (session) loadAll();
   }
 
   // Fires once with the current session on load, then on every sign-in or sign-out.
@@ -291,54 +575,22 @@ import Base from '../../layouts/Base.astro';
     setTimeout(() => render(session), 0);
   });
 
+  $('show-pw').addEventListener('change', (e) => {
+    $('password').type = e.target.checked ? 'text' : 'password';
+  });
+
   $('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = $('login-btn');
+    btn.disabled = true;
     $('login-msg').textContent = '';
     const { error } = await supabase.auth.signInWithPassword({
       email: $('email').value.trim(),
       password: $('password').value,
     });
-    if (error) $('login-msg').textContent = 'The email or password is incorrect.';
+    if (error) $('login-msg').textContent = 'The email or password is not correct. Check them and try again.';
+    btn.disabled = false;
   });
 
   $('signout').addEventListener('click', () => supabase.auth.signOut());
-
-  $('project-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const status = $('status');
-    const button = $('submit-btn');
-    button.disabled = true;
-    status.textContent = 'Creating project...';
-    try {
-      const title = $('title').value.trim();
-      const row = {
-        title,
-        slug: slugify(title),
-        description: $('description').value.trim() || null,
-        location: $('location').value.trim() || null,
-        year: $('year').value ? parseInt($('year').value, 10) : null,
-        category: $('category').value.trim() || null,
-        published: false,
-      };
-
-      let { data, error } = await supabase.from('projects').insert(row).select('id').single();
-      if (error?.code === '23505') {
-        // Another project already uses this slug; add a short suffix and retry once.
-        row.slug += '-' + Math.random().toString(36).slice(2, 6);
-        ({ data, error } = await supabase.from('projects').insert(row).select('id').single());
-      }
-      if (error) throw error;
-
-      openIds.add(data.id);
-      form.reset();
-      await loadProjects();
-      status.textContent = 'Project created. Open it below to add photos and videos.';
-      $('project-list').firstElementChild?.scrollIntoView({ block: 'nearest' });
-    } catch (err) {
-      status.textContent = err.message || 'Could not create the project. Try again.';
-    } finally {
-      button.disabled = false;
-    }
-  });
 </script>
