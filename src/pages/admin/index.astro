@@ -6,6 +6,7 @@ import Base from '../../layouts/Base.astro';
     <section id="login" class="login" hidden aria-labelledby="login-title">
       <form id="login-form" class="login-card">
         <div>
+          <svg class="mark" viewBox="11 28 79 45.5" aria-hidden="true"><use href="#qs-mark" /></svg>
           <h1 id="login-title">Sign in</h1>
           <p class="muted">Manage your projects, photos and videos.</p>
         </div>
@@ -24,7 +25,7 @@ import Base from '../../layouts/Base.astro';
     <div id="dashboard" hidden>
       <header class="appbar">
         <div class="wrap">
-          <strong class="appbar-title">Admin</strong>
+          <strong class="appbar-title"><svg class="mark" viewBox="11 28 79 45.5" aria-hidden="true"><use href="#qs-mark" /></svg>Admin</strong>
           <div class="appbar-actions">
             <a class="btn btn-sm btn-light" href="/" target="_blank" rel="noopener">View site</a>
             <button id="signout" class="btn btn-sm btn-light" type="button">Sign out</button>
@@ -68,6 +69,9 @@ import Base from '../../layouts/Base.astro';
         <label class="field">Type of work
           <input type="text" id="f-category" list="categories" maxlength="60" autocomplete="off" />
           <datalist id="categories">
+            <option value="Civil"></option>
+            <option value="Electrical"></option>
+            <option value="Mechanical"></option>
             <option value="Building"></option>
             <option value="Road"></option>
             <option value="Drainage"></option>

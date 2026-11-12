@@ -3,12 +3,28 @@ import '../styles/global.css';
 import { site } from '../config.js';
 
 const { title, description = site.tagline, image, noindex = false, bare = false } = Astro.props;
-const fullTitle = title ? `${title} | ${site.name}` : `${site.name}, ${site.role}`;
+const fullTitle = title ? `${title} | ${site.name}` : `${site.name} | ${site.role}`;
 const base = (site.siteUrl ?? '').replace(/\/$/, '');
 const canonical = base ? base + Astro.url.pathname : undefined;
 const wa = `https://wa.me/${site.whatsapp}${site.whatsappMessage ? `?text=${encodeURIComponent(site.whatsappMessage)}` : ''}`;
-const hasAbout = (site.about?.length ?? 0) + (site.services?.length ?? 0) > 0;
-const favicon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230f2e4d'/%3E%3Crect y='21' width='32' height='5' fill='%23ffc20e'/%3E%3C/svg%3E";
+const hasAbout = (site.about?.length ?? 0) + (site.services?.length ?? 0) > 0 || !!site.owner;
+const brandSub = site.shortName ? site.name.replace(site.shortName, '').trim() : '';
+
+// The Quantix mark: orange Q and dark S. The S takes its colour from --logo-dark,
+// so it turns white on dark backgrounds.
+const Q = 'M12.2634 39.8585L32.9355 29.0786L53.299 39.8585V60.7401L45.7923 54.0715V44.9094L32.7905 37.7025L19.4123 44.9094V53.4663C19.4123 53.4663 19.4123 61.1445 28.5326 63.9725C28.5326 63.9725 34.3116 65.4565 37.9616 63.3005L27.8909 54.3786H38.6527L57.5322 71.1034H47.1684L43.938 68.2419C42.6853 68.9109 35.2526 72.7393 26.4901 70.3492C22.6399 69.322 19.1688 67.2295 16.4873 64.3192C14.8474 62.4943 13.6135 60.3511 12.8651 58.0276C12.3904 56.5383 12.1561 54.9848 12.1708 53.4238L12.2634 39.8585Z';
+const S = [
+  'M86.7878 35.1968H71.1325L73.3047 28.8779H88.8457L86.7878 35.1968Z',
+  'M80.8454 52.6635H65.1901L67.3622 46.3416H82.9033L80.8454 52.6635Z',
+  'M74.6583 71.3189H59L61.1721 65H76.7163L74.6583 71.3189Z',
+  'M70.7901 28.8779C68.1449 36.8065 65.5017 44.735 62.8606 52.6636C61.8486 51.575 58.7663 47.9746 58.8496 42.9176C58.9453 36.1821 64.5823 31.043 69.3616 29.3614C69.7657 29.2185 70.1144 29.1182 70.3736 29.0573L70.7901 28.8779Z',
+  'M85.7511 46.6427L77.8463 71.3284C79.278 70.9514 83.8166 69.5556 86.7569 65.1889C90.6754 59.3718 89.324 51.8943 86.5872 47.8408C86.3589 47.5002 86.146 47.2326 85.9702 47.0228L85.7511 46.6427Z',
+];
+const markFill = (dark) => `<path d="${Q}" fill="#FE5100"/>` + S.map((d) => `<path d="${d}" fill="${dark}"/>`).join('');
+const markInner = `<path d="${Q}" fill="#FE5100"/>` + S.map((d) => `<path d="${d}" style="fill:var(--logo-dark,#1C2830)"/>`).join('');
+const favicon =
+  'data:image/svg+xml,' +
+  encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="5 5 92 92"><rect x="5" y="5" width="92" height="92" rx="14" fill="#fff"/>${markFill('#1C2830')}</svg>`);
 ---
 <!doctype html>
 <html lang="en">
@@ -17,13 +33,14 @@ const favicon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' vi
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#0f2e4d" />
+    <meta name="theme-color" content="#1c2830" />
     {noindex && <meta name="robots" content="noindex,nofollow" />}
     {canonical && <link rel="canonical" href={canonical} />}
     <link rel="icon" href={favicon} />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
+    <meta property="og:site_name" content={site.name} />
     {canonical && <meta property="og:url" content={canonical} />}
     {image && <meta property="og:image" content={image} />}
     <meta name="twitter:card" content="summary_large_image" />
@@ -34,11 +51,21 @@ const favicon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' vi
     <slot name="head" />
   </head>
   <body>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+      <defs><g id="qs-mark" set:html={markInner} /></defs>
+    </svg>
+
     {!bare && <a class="skip" href="#main">Skip to content</a>}
     {!bare && (
       <header class="site-header">
         <div class="wrap header-row">
-          <a href="/" class="brand">{site.name}<span>{site.role}</span></a>
+          <a href="/" class="brand" aria-label={site.name}>
+            <svg class="mark" viewBox="11 28 79 45.5" aria-hidden="true"><use href="#qs-mark" /></svg>
+            <span>
+              <span class="brand-name">{site.shortName ?? site.name}</span>
+              {brandSub && <span class="brand-sub">{brandSub}</span>}
+            </span>
+          </a>
           <nav class="nav" aria-label="Main">
             <a href="/#projects">Projects</a>
             {hasAbout && <a href="/#about">About</a>}
@@ -51,12 +78,30 @@ const favicon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' vi
     {bare ? <slot /> : <main id="main"><slot /></main>}
     {!bare && (
       <footer class="site-footer">
-        <div class="wrap footer-row">
-          <span>&copy; {new Date().getFullYear()} {site.name}</span>
-          <span class="footer-links">
-            <a href={`mailto:${site.email}`}>{site.email}</a>
-            <a href={wa}>WhatsApp</a>
-          </span>
+        <div class="wrap">
+          <div class="footer-top">
+            <div>
+              <a href="/" class="brand" aria-label={site.name}>
+                <svg class="mark" viewBox="11 28 79 45.5" aria-hidden="true"><use href="#qs-mark" /></svg>
+                <span>
+                  <span class="brand-name">{site.shortName ?? site.name}</span>
+                  {brandSub && <span class="brand-sub">{brandSub}</span>}
+                </span>
+              </a>
+              {site.disciplines?.length > 0 && (
+                <ul class="disciplines">{site.disciplines.map((d) => <li>{d}</li>)}</ul>
+              )}
+            </div>
+            <ul class="footer-links">
+              <li><a href={`mailto:${site.email}`}>{site.email}</a></li>
+              <li><a href={`tel:${site.phone.replace(/\s/g, '')}`}>{site.phone}</a></li>
+              <li><a href={wa}>WhatsApp</a></li>
+            </ul>
+          </div>
+          <div class="footer-base">
+            <span>&copy; {new Date().getFullYear()} {site.name}</span>
+            {site.rc && <span>{site.rc}</span>}
+          </div>
         </div>
       </footer>
     )}
