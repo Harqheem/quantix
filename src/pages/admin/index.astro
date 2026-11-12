@@ -59,27 +59,21 @@ import Base from '../../layouts/Base.astro';
       <label class="field">Project name
         <input type="text" id="f-title" required maxlength="120" autocomplete="off" />
       </label>
-      <div class="row3">
+      <div class="row2">
         <label class="field">Location
           <input type="text" id="f-location" maxlength="80" autocomplete="off" />
         </label>
         <label class="field">Year
           <input type="number" id="f-year" min="1990" max="2100" inputmode="numeric" />
         </label>
-        <label class="field">Type of work
-          <input type="text" id="f-category" list="categories" maxlength="60" autocomplete="off" />
-          <datalist id="categories">
-            <option value="Civil"></option>
-            <option value="Electrical"></option>
-            <option value="Mechanical"></option>
-            <option value="Building"></option>
-            <option value="Road"></option>
-            <option value="Drainage"></option>
-            <option value="Bridge"></option>
-            <option value="Water supply"></option>
-            <option value="Renovation"></option>
-          </datalist>
-        </label>
+      </div>
+      <div class="field">
+        <div class="field-head">
+          <label for="f-category">Type of work</label>
+          <button type="button" class="btn btn-sm" id="manage-cats">Manage types</button>
+        </div>
+        <select id="f-category" class="select"></select>
+        <span class="help">Choose one. To add a new type of work, use Manage types.</span>
       </div>
       <label class="field">Description
         <textarea id="f-description" maxlength="3000"></textarea>
@@ -93,6 +87,25 @@ import Base from '../../layouts/Base.astro';
     </form>
   </dialog>
 
+  <dialog id="cat-dialog" aria-labelledby="cat-title">
+    <div class="dlg">
+      <h2 id="cat-title">Types of work</h2>
+      <p class="help">These appear in the Type of work dropdown and as filters on the website.</p>
+      <p id="cat-note" class="notice" hidden>The list of types is not set up yet. Run the SQL step, then reload this page.</p>
+      <ul id="cat-list" class="catlist"></ul>
+      <form id="cat-form" class="cat-add">
+        <label class="field">New type of work
+          <input type="text" id="cat-name" maxlength="40" autocomplete="off" />
+        </label>
+        <button type="submit" class="btn btn-primary">Add type</button>
+      </form>
+      <p id="cat-msg" class="form-error" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn" id="cat-close">Done</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="confirm-dialog" aria-labelledby="confirm-title">
     <form method="dialog" class="dlg">
       <h2 id="confirm-title"></h2>
@@ -104,7 +117,7 @@ import Base from '../../layouts/Base.astro';
     </form>
   </dialog>
 
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite" popover="manual"></div>
 </Base>
 
 <script>
@@ -131,6 +144,9 @@ import Base from '../../layouts/Base.astro';
 
   let projects = [];
   let media = [];
+  let categories = []; // { id, name }
+  let categoriesOk = true; // false until the categories table exists
+  let lastCategory = '';
   let editing = null; // the project being edited, or null while creating
   const openIds = new Set(); // keeps projects expanded after the list refreshes
 
@@ -140,9 +156,14 @@ import Base from '../../layouts/Base.astro';
     const t = $('toast');
     t.textContent = msg;
     t.classList.toggle('bad', bad);
-    t.classList.add('show');
+    // The popover layer keeps the message above open dialogs.
+    if (t.showPopover && !t.matches(':popover-open')) t.showPopover();
+    requestAnimationFrame(() => t.classList.add('show'));
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), bad ? 8000 : 4500);
+    toastTimer = setTimeout(() => {
+      t.classList.remove('show');
+      setTimeout(() => { if (t.hidePopover && t.matches(':popover-open')) t.hidePopover(); }, 300);
+    }, bad ? 8000 : 4500);
   }
 
   function ask(title, body, label) {
@@ -229,6 +250,7 @@ import Base from '../../layouts/Base.astro';
     }
     projects = pr.data;
     media = mr.data;
+    await loadCategories();
     paint();
   }
 
@@ -503,6 +525,112 @@ import Base from '../../layouts/Base.astro';
     return el('div', { className: 'uploader', style: 'display:grid;gap:.75rem' }, drop, list, el('div', {}, send));
   }
 
+  /* ---------- Types of work ---------- */
+  async function loadCategories() {
+    const { data, error } = await supabase.from('categories').select('id,name').order('name');
+    categoriesOk = !error;
+    categories = error ? [] : data;
+  }
+
+  function categoryNames(selected = '') {
+    const names = categoriesOk
+      ? categories.map((c) => c.name)
+      : [...new Set(projects.map((p) => p.category).filter(Boolean))].sort();
+    if (selected && !names.includes(selected)) names.push(selected); // keep a type that left the list
+    return names;
+  }
+
+  function fillCategorySelect(selected = '') {
+    const sel = $('f-category');
+    sel.replaceChildren(
+      el('option', { value: '', textContent: 'Select a type of work' }),
+      ...categoryNames(selected).map((n) => el('option', { value: n, textContent: n })),
+      el('option', { value: '__new', textContent: '+ Add a new type of work' })
+    );
+    sel.value = selected;
+    lastCategory = selected;
+  }
+
+  function paintCategories() {
+    $('cat-note').hidden = categoriesOk;
+    const list = $('cat-list');
+    list.replaceChildren();
+    if (!categories.length) {
+      list.append(el('li', {}, el('span', { className: 'help', textContent: 'No types yet. Add the first one below.' })));
+    }
+    for (const c of categories) {
+      const used = projects.filter((p) => p.category === c.name).length;
+      const rm = el('button', { type: 'button', className: 'btn btn-sm btn-danger', textContent: 'Remove' });
+      rm.setAttribute('aria-label', `Remove ${c.name}`);
+      rm.addEventListener('click', async () => {
+        const ok = await ask(
+          'Remove this type?',
+          used
+            ? `${plural(used, 'project')} already use "${c.name}" and will keep it, but it will no longer appear in the dropdown.`
+            : `"${c.name}" will no longer appear in the dropdown.`,
+          'Remove type'
+        );
+        if (!ok) return;
+        const { error } = await supabase.from('categories').delete().eq('id', c.id);
+        if (error) {
+          toast('Could not remove the type. Try again.', true);
+          return;
+        }
+        const current = $('f-category').value;
+        await loadCategories();
+        paintCategories();
+        fillCategorySelect(current && current !== c.name && current !== '__new' ? current : '');
+      });
+      list.append(el('li', {}, el('span', { textContent: c.name }), rm));
+    }
+  }
+
+  function openCategoryDialog() {
+    $('cat-msg').textContent = '';
+    $('cat-name').value = '';
+    paintCategories();
+    $('cat-dialog').showModal();
+    $('cat-name').focus();
+  }
+
+  $('manage-cats').addEventListener('click', openCategoryDialog);
+  $('cat-close').addEventListener('click', () => $('cat-dialog').close());
+  $('f-category').addEventListener('change', (e) => {
+    if (e.target.value === '__new') {
+      e.target.value = lastCategory;
+      openCategoryDialog();
+    } else {
+      lastCategory = e.target.value;
+    }
+  });
+
+  $('cat-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = $('cat-msg');
+    const name = $('cat-name').value.trim().replace(/\s+/g, ' ');
+    if (!name) {
+      msg.textContent = 'Enter a name for the type of work.';
+      return;
+    }
+    if (categories.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
+      msg.textContent = `"${name}" is already in the list.`;
+      return;
+    }
+    const { error } = await supabase.from('categories').insert({ name });
+    if (error) {
+      msg.textContent = categoriesOk
+        ? 'Could not add the type. Try again.'
+        : 'Types cannot be added until the categories table exists. Run the SQL step, then reload this page.';
+      return;
+    }
+    msg.textContent = '';
+    await loadCategories();
+    paintCategories();
+    $('cat-name').value = '';
+    fillCategorySelect(name); // select the new type in the open project form
+    toast(`Added "${name}".`);
+  });
+
   /* ---------- Project dialog (create and edit) ---------- */
   function openProjectDialog(p = null) {
     editing = p;
@@ -511,7 +639,7 @@ import Base from '../../layouts/Base.astro';
     $('f-title').value = p?.title ?? '';
     $('f-location').value = p?.location ?? '';
     $('f-year').value = p?.year ?? '';
-    $('f-category').value = p?.category ?? '';
+    fillCategorySelect(p?.category ?? '');
     $('f-description').value = p?.description ?? '';
     $('dialog-msg').textContent = '';
     $('project-dialog').showModal();
@@ -536,7 +664,7 @@ import Base from '../../layouts/Base.astro';
       description: $('f-description').value.trim() || null,
       location: $('f-location').value.trim() || null,
       year: $('f-year').value ? parseInt($('f-year').value, 10) : null,
-      category: $('f-category').value.trim() || null,
+      category: $('f-category').value && $('f-category').value !== '__new' ? $('f-category').value : null,
     };
     btn.disabled = true;
     msg.textContent = '';

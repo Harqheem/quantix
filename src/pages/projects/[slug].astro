@@ -24,16 +24,23 @@ const paragraphs = (project.description ?? '').split(/\n\s*\n/).filter(Boolean);
   description={paragraphs[0]?.slice(0, 160)}
   image={project.cover_url ? og(project.cover_url) : undefined}
 >
+  <section class="phead">
+    <div class="wrap">
+      <p class="back"><a href="/#projects">All projects</a></p>
+      <h1>{project.title}</h1>
+      {cells.length > 0 && (
+        <dl class="titleblock">
+          {cells.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
+        </dl>
+      )}
+    </div>
+    <svg class="cut cut-bottom" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+      <polygon points="0,7.6 100,0.6 100,3 0,10" fill="#fe5100" />
+      <polygon points="0,10 100,3 100,10" fill="#f1f3f4" />
+    </svg>
+  </section>
+
   <article class="wrap project">
-    <p class="back"><a href="/">All projects</a></p>
-    <h1>{project.title}</h1>
-
-    {cells.length > 0 && (
-      <dl class="titleblock">
-        {cells.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
-      </dl>
-    )}
-
     {paragraphs.length > 0 && (
       <div class="prose">
         {paragraphs.map((p) => <p>{p}</p>)}
@@ -43,30 +50,72 @@ const paragraphs = (project.description ?? '').split(/\n\s*\n/).filter(Boolean);
     <div class="gallery">
       {media.map((m, i) =>
         m.type === 'image' ? (
-          <a href={img(m.url, 2000)} target="_blank" rel="noopener">
+          <a href={img(m.url, 2000)} data-full={img(m.url, 2000)} data-alt={`${project.title}, photo ${i + 1}`} target="_blank" rel="noopener">
             <img
-              src={img(m.url, 1200, '3:2')}
-              srcset={srcset(m.url, [600, 1000, 1400], '3:2')}
-              sizes="(min-width: 760px) 50vw, 100vw"
+              src={img(m.url, 1200, i === 0 ? '16:9' : '3:2')}
+              srcset={srcset(m.url, i === 0 ? [800, 1200, 1600, 2000] : [600, 1000, 1400], i === 0 ? '16:9' : '3:2')}
+              sizes={i === 0 ? '(min-width: 1280px) 1240px, 100vw' : '(min-width: 760px) 50vw, 100vw'}
               width="1200"
-              height="800"
+              height={i === 0 ? '675' : '800'}
               alt={`${project.title}, photo ${i + 1}`}
               loading={i < 2 ? 'eager' : 'lazy'}
               decoding="async"
             />
           </a>
         ) : (
-          <video
-            controls
-            playsinline
-            preload="none"
-            poster={poster(m.url)}
-            src={videoSrc(m.url)}
-            width="1200"
-            height="800"
-          ></video>
+          <video controls playsinline preload="none" poster={poster(m.url)} src={videoSrc(m.url)} width="1200" height="800"></video>
         )
       )}
     </div>
   </article>
+
+  <dialog class="lightbox" id="lightbox" aria-label="Photo viewer">
+    <figure class="lb-fig">
+      <img id="lb-img" alt="" />
+      <figcaption id="lb-cap"></figcaption>
+    </figure>
+    <div class="lb-bar">
+      <button type="button" class="lb-btn" id="lb-prev">Previous</button>
+      <button type="button" class="lb-btn" id="lb-close">Close</button>
+      <button type="button" class="lb-btn" id="lb-next">Next</button>
+    </div>
+  </dialog>
 </Base>
+
+<script>
+  // Progressive enhancement: without JavaScript each photo simply opens full size in a new tab.
+  const links = [...document.querySelectorAll('.gallery a[data-full]')];
+  const box = document.getElementById('lightbox');
+  if (links.length && box) {
+    const pic = document.getElementById('lb-img');
+    const cap = document.getElementById('lb-cap');
+    let index = 0;
+
+    const show = (i) => {
+      index = (i + links.length) % links.length;
+      pic.src = links[index].dataset.full;
+      pic.alt = links[index].dataset.alt ?? '';
+      cap.textContent = `Photo ${index + 1} of ${links.length}`;
+    };
+    links.forEach((a, i) =>
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        show(i);
+        box.showModal();
+      })
+    );
+    if (links.length < 2) {
+      document.getElementById('lb-prev').hidden = true;
+      document.getElementById('lb-next').hidden = true;
+    }
+    document.getElementById('lb-prev').addEventListener('click', () => show(index - 1));
+    document.getElementById('lb-next').addEventListener('click', () => show(index + 1));
+    document.getElementById('lb-close').addEventListener('click', () => box.close());
+    box.addEventListener('click', (e) => { if (e.target === box) box.close(); });
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') show(index - 1);
+      if (e.key === 'ArrowRight') show(index + 1);
+    });
+    box.addEventListener('close', () => { pic.removeAttribute('src'); });
+  }
+</script>

@@ -16,7 +16,7 @@ export const site = {
   owner: {
     name: 'Engr. Mahmud Quwam Adura',
     title: 'Managing Director',
-    photo: '/dir.jpg',
+    photo: '/quam.jpg',
   },
   rc: 'RC 9546511',
   email: 'Quwantom20@gmail.com',

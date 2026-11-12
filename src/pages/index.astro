@@ -42,14 +42,26 @@ const facts = [
 ].filter(Boolean);
 
 const heroCells = hero
-  ? [['Project', hero.title], ['Location', hero.location], ['Year', hero.year], ['Type', hero.category]].filter(([, v]) => v)
+  ? [['Latest project', hero.title], ['Location', hero.location], ['Year', hero.year], ['Type', hero.category]].filter(([, v]) => v)
   : [];
 
+// Disciplines: each may be a plain string or { title, text, icon }.
+const icons = {
+  civil: '<path d="M3 21h18M5 21V9l7-5 7 5v12M10 21v-6h4v6M9 11h.01M15 11h.01M9 14h.01M15 14h.01"/>',
+  electrical: '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/>',
+  mechanical: '<path d="M18.48 10.74 L21.33 10.85 L21.33 13.15 L18.48 13.26 L17.47 15.69 L19.41 17.79 L17.79 19.41 L15.69 17.47 L13.26 18.48 L13.15 21.33 L10.85 21.33 L10.74 18.48 L8.31 17.47 L6.21 19.41 L4.59 17.79 L6.53 15.69 L5.52 13.26 L2.67 13.15 L2.67 10.85 L5.52 10.74 L6.53 8.31 L4.59 6.21 L6.21 4.59 L8.31 6.53 L10.74 5.52 L10.85 2.67 L13.15 2.67 L13.26 5.52 L15.69 6.53 L17.79 4.59 L19.41 6.21 L17.47 8.31Z"/><circle cx="12" cy="12" r="2.6"/>',
+};
+const iconFor = (s) => {
+  const key = (s.icon ?? s.title ?? '').toLowerCase();
+  if (key.includes('civil')) return icons.civil;
+  if (key.includes('electr')) return icons.electrical;
+  return icons.mechanical;
+};
+const services = (site.services ?? []).map((s) => (typeof s === 'string' ? { title: s } : s));
+
 const about = site.about ?? [];
-const services = site.services ?? [];
-const credentials = site.credentials ?? [];
 const owner = site.owner;
-const hasAbout = about.length + services.length > 0 || !!owner;
+const hasAbout = about.length > 0 || !!owner;
 
 const base = (site.siteUrl ?? '').replace(/\/$/, '');
 const wa = `https://wa.me/${site.whatsapp}${site.whatsappMessage ? `?text=${encodeURIComponent(site.whatsappMessage)}` : ''}`;
@@ -68,6 +80,31 @@ const ld = {
   <script type="application/ld+json" slot="head" set:html={JSON.stringify(ld)} />
 
   <section class="hero">
+    {hero?.cover_url ? (
+      <div class="hero-bg" aria-hidden="true">
+        <picture>
+          <source
+            media="(min-width: 900px)"
+            srcset={srcset(hero.cover_url, [1200, 1600, 2000, 2400], '2:1')}
+            sizes="100vw"
+          />
+          <img
+            src={img(hero.cover_url, 900, '4:5')}
+            srcset={srcset(hero.cover_url, [600, 900, 1200], '4:5')}
+            sizes="100vw"
+            width="900"
+            height="1125"
+            alt=""
+            fetchpriority="high"
+            decoding="async"
+          />
+        </picture>
+      </div>
+    ) : (
+      <svg class="hero-mark" viewBox="11 28 79 45.5" aria-hidden="true"><use href="#qs-mark" /></svg>
+    )}
+    <div class="hero-shade"></div>
+
     <div class="wrap">
       <div class="hero-grid">
         <div>
@@ -75,7 +112,7 @@ const ld = {
           {site.intro && <p class="lead rise" style="--i:1">{site.intro}</p>}
           <div class="cta-row rise" style="--i:2">
             <a class="btn btn-primary" href="#projects">View projects</a>
-            <a class="btn" href={wa}>Message on WhatsApp</a>
+            <a class="btn btn-light" href={wa}>Message on WhatsApp</a>
           </div>
         </div>
         {facts.length > 0 && (
@@ -86,26 +123,7 @@ const ld = {
       </div>
 
       {hero && (
-        <a class="hero-fig" href={`/projects/${hero.slug}/`} aria-label={`Open project: ${hero.title}`}>
-          {hero.cover_url ? (
-            <picture>
-              <source
-                media="(min-width: 900px)"
-                srcset={srcset(hero.cover_url, [1200, 1600, 2000], '21:9')}
-                sizes="(min-width: 1280px) 1240px, 100vw"
-              />
-              <img
-                src={img(hero.cover_url, 900, '4:3')}
-                srcset={srcset(hero.cover_url, [600, 900, 1200], '4:3')}
-                sizes="100vw"
-                width="1200"
-                height="900"
-                alt=""
-                fetchpriority="high"
-                decoding="async"
-              />
-            </picture>
-          ) : <div class="ph"></div>}
+        <a class="hero-latest" href={`/projects/${hero.slug}/`} aria-label={`Open project: ${hero.title}`}>
           <dl class="titleblock">
             {heroCells.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
             <div class="tb-open"><dt>{fileLine(hero.id) || 'Project'}</dt><dd>Open project</dd></div>
@@ -113,9 +131,36 @@ const ld = {
         </a>
       )}
     </div>
+
+    <svg class="cut cut-bottom" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+      <polygon points="0,7.6 100,0.6 100,3 0,10" fill="#fe5100" />
+      <polygon points="0,10 100,3 100,10" fill="#f1f3f4" />
+    </svg>
   </section>
 
-  <section class="section" id="projects" aria-labelledby="projects-title">
+  {services.length > 0 && (
+    <section class="section" id="services" aria-labelledby="services-title" style="padding-block:clamp(2rem,5vw,3.5rem) clamp(0.5rem,2vw,1.5rem)">
+      <div class="wrap">
+        <div class="section-head"><h2 id="services-title">What we do</h2></div>
+        <ul class="svc-list">
+          {services.map((s) => (
+            <li class="svc">
+              <span class="svc-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" set:html={iconFor(s)} />
+              </span>
+              <h3>{s.title}</h3>
+              {s.text && <p>{s.text}</p>}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )}
+
+  <section class="section projects" id="projects" aria-labelledby="projects-title">
+    <svg class="cut cut-top" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+      <polygon points="0,0 100,0 0,10" fill="#f1f3f4" />
+    </svg>
     <div class="wrap">
       <div class="section-head">
         <h2 id="projects-title">Projects</h2>
@@ -131,30 +176,30 @@ const ld = {
         <div class="grid" id="grid">
           {projects.map((p, i) => (
             <a class="card" href={`/projects/${p.slug}/`} data-type={p.category?.trim() ?? ''}>
-              {p.cover_url ? (
-                <img
-                  src={img(p.cover_url, 800, '4:3')}
-                  srcset={srcset(p.cover_url, [400, 800, 1200], '4:3')}
-                  sizes="(min-width: 960px) 33vw, (min-width: 620px) 50vw, 100vw"
-                  width="800"
-                  height="600"
-                  alt=""
-                  loading={i < 3 ? 'eager' : 'lazy'}
-                  decoding="async"
-                />
-              ) : <div class="ph"></div>}
-              <div class="card-body">
+              <span class="card-media">
+                {p.cover_url ? (
+                  <img
+                    src={img(p.cover_url, 800, '4:3')}
+                    srcset={srcset(p.cover_url, [400, 800, 1200], '4:3')}
+                    sizes="(min-width: 960px) 33vw, (min-width: 620px) 50vw, 100vw"
+                    width="800"
+                    height="600"
+                    alt=""
+                    loading={i < 3 ? 'eager' : 'lazy'}
+                    decoding="async"
+                  />
+                ) : <span class="ph" style="display:block"></span>}
+                {p.category && <span class="card-chip">{p.category}</span>}
+              </span>
+              <span class="card-body">
                 <h3>{p.title}</h3>
                 {[p.location, p.year].filter(Boolean).length > 0 && (
-                  <p class="card-meta">{[p.location, p.year].filter(Boolean).join(', ')}</p>
+                  <span class="card-meta">{[p.location, p.year].filter(Boolean).join(', ')}</span>
                 )}
-                {(p.category || fileLine(p.id)) && (
-                  <ul class="card-tags">
-                    {p.category && <li>{p.category}</li>}
-                    {fileLine(p.id) && <li>{fileLine(p.id)}</li>}
-                  </ul>
+                {fileLine(p.id) && (
+                  <ul class="card-tags"><li>{fileLine(p.id)}</li></ul>
                 )}
-              </div>
+              </span>
             </a>
           ))}
         </div>
@@ -163,10 +208,13 @@ const ld = {
       )}
       <p class="sr-only" id="filter-status" role="status"></p>
     </div>
+    <svg class="cut cut-bottom" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+      <polygon points="0,10 100,10 100,0" fill="#ffffff" />
+    </svg>
   </section>
 
   {hasAbout && (
-    <section class="section section-sheet" id="about" aria-labelledby="about-title">
+    <section class="section about" id="about" aria-labelledby="about-title">
       <div class={`wrap about-grid${owner ? ' has-owner' : ''}`}>
         <div class="about-copy">
           <h2 id="about-title">About</h2>
@@ -183,20 +231,12 @@ const ld = {
             </figcaption>
           </figure>
         )}
-        <div>
-          {services.length > 0 && (
-            <>
-              <h3 class="subhead">What we do</h3>
-              <ul class="services">{services.map((s) => <li>{s}</li>)}</ul>
-            </>
-          )}
-          {credentials.length > 0 && <ul class="credentials">{credentials.map((c) => <li>{c}</li>)}</ul>}
-        </div>
       </div>
     </section>
   )}
 
   <section class="section contact" id="contact" aria-labelledby="contact-title">
+    <svg class="contact-mark" viewBox="11 28 79 45.5" aria-hidden="true"><use href="#qs-mark" /></svg>
     <div class="wrap contact-grid">
       <div>
         <h2 id="contact-title">{site.contactHeadline ?? 'Have a project in mind?'}</h2>
