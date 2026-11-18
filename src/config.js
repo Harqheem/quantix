@@ -4,7 +4,7 @@ export const site = {
   shortName: 'Quantix',
   role: 'Civil, Electrical and Mechanical Engineering',
   disciplines: ['Civil', 'Electrical', 'Mechanical'],
-  siteUrl: '', // fill in once you have the final address, e.g. 'https://quantix.vercel.app'
+  siteUrl: 'https://quantix-synergy.vercel.app/',
   location: 'Km 48 Lekki-Epe Expressway, Lagos',
   headline: 'Civil, electrical and mechanical engineering under one roof.',
   intro: 'Quantix Synergy Engineering Ltd delivers engineering projects from its base in Lagos. Browse our recent work below, then message us about yours.',
@@ -14,7 +14,7 @@ export const site = {
   ],
   services: ['Civil engineering', 'Electrical engineering', 'Mechanical engineering'],
   owner: {
-    name: 'Engr. Mahmud Quwam Adura',
+    name: 'Engr. Mahmud Quwam',
     title: 'Managing Director',
     photo: '/quwam.jpg',
   },
